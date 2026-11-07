@@ -412,6 +412,8 @@ local function show_help()
     windower.add_to_chat(207, '  //caststill hold <seconds>       - Set current mode max hold (0.1-15s)')
     windower.add_to_chat(207, '  //caststill status               - Show current settings')
     windower.add_to_chat(207, '  //caststill help                 - Show commands')
+    windower.add_to_chat(207, '  //caststill restart              - Reload this addon')
+    windower.add_to_chat(207, '  //caststill unload               - Unload this addon')
 end
 
 windower.register_event('addon command', function(cmd, arg)
@@ -419,6 +421,11 @@ windower.register_event('addon command', function(cmd, arg)
     arg = arg and arg:lower() or nil
     if cmd == 'status' then show_status(); return end
     if cmd == 'help' or cmd == '' then show_help(); return end
+    if cmd == 'restart' or cmd == 'unload' then
+        windower.add_to_chat(207, '[CastStill] '.. (cmd == 'restart' and 'Reloading.' or 'Unloading.'))
+        windower.send_command('lua ' .. (cmd == 'restart' and 'reload' or 'unload') .. ' caststill')
+        return
+    end
     if cmd == 'mode' then
         if arg ~= 'recent' and arg ~= 'firststop' then show_help(); return end
         settings.mode = arg
