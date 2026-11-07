@@ -33,13 +33,17 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 _addon.name     = 'CastStill'
 _addon.author   = 'Broguypal'
-_addon.version  = '1.2.2'
+_addon.version  = '1.3.0-dev'
+_addon.commands = {'caststill'}
 
 require('pack')
 local res = require('resources')
+local config = require('config')
 
 local recent_window  = 1.25
-local stop_window    = 0.35
+local stop_window    = 0.35 -- upstream default preserved in recent mode
+local settings = config.load({mode = 'recent', hold = 0.35, firststop_hold = 5.0})
+local firststop_settle = 0.20 -- fresh stationary interval; prevents a lone repeated packet from releasing
 local bypass_window  = 1.50
 local st_window      = 30.00
 local probe_interval = 10.00
@@ -50,6 +54,8 @@ local cs = {
     last_reported   = nil,
     last_move_time  = -999,
     is_settled      = true,
+    client_last_pos = nil,
+    client_move_time = -999,
 
     pending         = nil,
     pending_time    = 0,
@@ -90,7 +96,34 @@ end
 
 local function should_gate()
     if os.clock() < cs.bypass_until then return false end
+    if settings.mode == 'firststop' then
+        local pos = get_pos()
+        if pos and cs.last_reported and not same_pos(pos, cs.last_reported) then return true end
+        if not cs.is_settled then return true end
+        return recently_moving() or (os.clock() - cs.client_move_time < firststop_settle)
+    end
     if not recently_moving() or cs.is_settled then return false end
+    return true
+end
+
+-- Poll client position as well as outgoing reports: catches movement that
+-- begins before the next 0x015 is sent. 0x015 remains our settle evidence.
+local function track_client_movement()
+    local pos = get_pos()
+    if not pos then return end
+    if cs.client_last_pos and not same_pos(pos, cs.client_last_pos) then
+        cs.client_move_time = os.clock()
+        cs.is_settled = false
+    end
+    cs.client_last_pos = pos
+end
+
+local function ready_to_release()
+    if not cs.is_settled or not server_knows_pos() then return false end
+    if settings.mode == 'firststop' then
+        local last_move = math.max(cs.last_move_time, cs.client_move_time)
+        return (os.clock() - last_move) >= firststop_settle
+    end
     return true
 end
 
@@ -185,6 +218,8 @@ local function track_position(data)
 
     if cs.last_reported then
         if same_pos(cs.last_reported, new_pos) then
+            -- An unchanged 0x015 is a settle candidate; firststop mode
+            -- additionally checks a fresh no-movement interval.
             cs.is_settled = true
         else
             cs.last_move_time = now
@@ -302,6 +337,8 @@ windower.register_event('unhandled command', function(cmd)
 end)
 
 windower.register_event('prerender', function()
+    track_client_movement()
+
     if cs.gs_probe_until then
         if os.clock() >= cs.gs_probe_until then
             cs.gs_probe_until = nil
@@ -325,13 +362,23 @@ windower.register_event('prerender', function()
 
     if not cs.pending then return end
 
-    if (os.clock() - cs.pending_time) >= stop_window then
+    if ready_to_release() then
         fire_pending()
         return
     end
 
-    if cs.is_settled and server_knows_pos() then
-        fire_pending()
+    -- In firststop mode a timeout cancels, rather than firing a spell while
+    -- the player is still running. In recent mode the original 0.35s
+    -- fail-open behavior is preserved (unless the user adjusts hold).
+    local timeout = settings.mode == 'firststop' and settings.firststop_hold or settings.hold
+    if (os.clock() - cs.pending_time) >= timeout then
+        if settings.mode == 'firststop' then
+            cs.pending = nil
+            windower.add_to_chat(207, '[CastStill] Pending action canceled: no stationary opening within '
+                .. tostring(timeout) .. 's.')
+        else
+            fire_pending()
+        end
     end
 end)
 
@@ -341,6 +388,8 @@ windower.register_event('zone change', function()
     cs.last_move_time = -999
     cs.is_settled     = true
     cs.st_until       = 0
+    cs.client_last_pos = nil
+    cs.client_move_time = -999
 end)
 
 windower.register_event('load', function()
@@ -348,4 +397,45 @@ windower.register_event('load', function()
     cs.gs_probe_reload = auto_order
         and windower.file_exists(windower.addon_path .. '../GearSwap/GearSwap.lua')
     cs.gs_next_probe = os.clock() + 0.5
+end)
+local function show_status()
+    windower.add_to_chat(207, '[CastStill] v' .. _addon.version
+        .. ' | Mode: ' .. settings.mode
+        .. ' | Recent hold: ' .. tostring(settings.hold) .. 's'
+        .. ' | First-stop hold: ' .. tostring(settings.firststop_hold) .. 's'
+        .. ' | Pending: ' .. (cs.pending and 'YES' or 'NO'))
+end
+
+local function show_help()
+    windower.add_to_chat(207, '[CastStill] Commands:')
+    windower.add_to_chat(207, '  //caststill mode recent|firststop - Original short gate or hold until first stop')
+    windower.add_to_chat(207, '  //caststill hold <seconds>       - Set current mode max hold (0.1-15s)')
+    windower.add_to_chat(207, '  //caststill status               - Show current settings')
+    windower.add_to_chat(207, '  //caststill help                 - Show commands')
+end
+
+windower.register_event('addon command', function(cmd, arg)
+    cmd = cmd and cmd:lower() or ''
+    arg = arg and arg:lower() or nil
+    if cmd == 'status' then show_status(); return end
+    if cmd == 'help' or cmd == '' then show_help(); return end
+    if cmd == 'mode' then
+        if arg ~= 'recent' and arg ~= 'firststop' then show_help(); return end
+        settings.mode = arg
+    elseif cmd == 'hold' then
+        local seconds = tonumber(arg)
+        if not seconds or seconds < 0.1 or seconds > 15 then show_help(); return end
+        if settings.mode == 'firststop' then
+            settings.firststop_hold = seconds
+        else
+            settings.hold = seconds
+        end
+    else
+        show_help()
+        return
+    end
+    -- A mode change must not retroactively reinterpret a queued packet.
+    cs.pending = nil
+    settings:save('all')
+    show_status()
 end)
