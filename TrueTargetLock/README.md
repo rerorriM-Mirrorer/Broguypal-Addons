@@ -1,4 +1,4 @@
-# TrueTargetLock v1.2
+# TrueTargetLock v1.3.0 (working fork)
 
 TrueTargetLock is a Windower addon that automatically keeps your character facing your current target.
 
@@ -41,6 +41,24 @@ TrueTargetLock has two toggles that are saved between sessions in:
 - **OFF**: Active even when Target Lock is off
 
 Leaving off `on`/`off` toggles the current value. Use `//truetargetlock status` to see your current settings.
+
+### Face-away controls (working-fork experiment)
+
+```text
+//truetargetlock faceaway on
+//truetargetlock faceaway off
+//truetargetlock turnaway
+//truetargetlock turnaway 5
+//truetargetlock turnaway off
+//truetargetlock face
+//truetargetlock status
+```
+
+`faceaway on` continuously faces **180 degrees away** from the current target. It is a temporary, session-only setting (never saved), and remains active until `off`, `face`, logout, or zoning. When you explicitly request face-away, it overrides the normal combat and native-target-lock requirements.
+
+`turnaway [seconds]` temporarily faces away from the **currently selected target**, defaulting to 3 seconds, maximum 30 seconds. It cancels automatically if your target changes, and then returns to the existing face-target settings when the timer expires. `turnaway off` cancels the timer. `face` cancels all away modes. The default facing behavior is unchanged until you explicitly invoke these commands.
+
+A face-away direction can be useful for gaze mechanics, but it is not a guarantee against a particular attack's timing; test with noncritical encounters first.
 
 ### Combinations
 
@@ -91,3 +109,6 @@ You can have the addon load automatically by editing your Windower scripts file 
        lua l TrueTargetLock
 
 This will load the addon every time you start the game.
+## Working-fork changelog
+
+- **2026-11-06 / v1.3.0:** Added explicitly controlled continuous face-away and timed turn-away. The timed mode binds to the original target, auto-expires, and does not persist between sessions. Default combat/lock behavior preserved. Not yet live-tested.
