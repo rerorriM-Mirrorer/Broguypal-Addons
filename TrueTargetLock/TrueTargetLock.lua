@@ -32,7 +32,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 _addon.name    = 'TrueTargetLock'
 _addon.author  = 'Broguypal'
-_addon.version = '1.2'
+_addon.version = '1.3.0'
 _addon.commands = {'truetargetlock'}
 
 -- Throttle settings (edit here if desired)
@@ -49,6 +49,19 @@ local defaults = {
 }
 
 local settings = config.load(defaults)
+
+-- Explicit gaze-control modes are intentionally session-only. A saved 'away'
+-- mode could leave the character facing backwards on the next login.
+local faceaway = false
+local turnaway_until = 0
+local turnaway_target = nil
+local DEFAULT_TURNAWAY_SECONDS = 3
+local MAX_TURNAWAY_SECONDS = 30
+
+local function clear_turnaway()
+    turnaway_until = 0
+    turnaway_target = nil
+end
 
 if settings.mode ~= nil then
     if settings.mode == 'always' then
@@ -88,13 +101,21 @@ local function parse_toggle(arg, current)
 end
 
 local function show_status()
-    windower.add_to_chat(207, '[TrueTargetLock] Combat: '..on_off(settings.combat)..'  |  Locked: '..on_off(settings.locked))
+    local remain = math.max(0, turnaway_until - os.clock())
+    local mode = remain > 0 and string.format('TURN AWAY (%.1fs)', remain)
+        or (faceaway and 'FACE AWAY' or 'FACE TARGET')
+    windower.add_to_chat(207, '[TrueTargetLock] Combat: '..on_off(settings.combat)
+        ..'  |  Locked: '..on_off(settings.locked)..'  |  Facing: '..mode)
 end
 
 local function show_help()
     windower.add_to_chat(207, '[TrueTargetLock] Commands:')
     windower.add_to_chat(207, '  //truetargetlock combat on|off  - Require being engaged (default ON)')
     windower.add_to_chat(207, '  //truetargetlock locked on|off  - Require native target lock (default ON)')
+    windower.add_to_chat(207, '  //truetargetlock faceaway on|off - Face 180 degrees away until turned off')
+    windower.add_to_chat(207, '  //truetargetlock turnaway [seconds] - Face away temporarily (default 3s, max 30s)')
+    windower.add_to_chat(207, '  //truetargetlock turnaway off   - Cancel timed turn-away')
+    windower.add_to_chat(207, '  //truetargetlock face           - Resume automatic facing')
     windower.add_to_chat(207, '  //truetargetlock status         - Show current settings')
 end
 
@@ -118,6 +139,39 @@ windower.register_event('addon command', function(cmd, arg)
         elseif not settings.locked then
             windower.add_to_chat(207, '[TrueTargetLock] **You cannot turn away while engaged.**')
         end
+    elseif cmd == 'faceaway' then
+        local value = parse_toggle(arg, faceaway)
+        if value == nil then
+            windower.add_to_chat(207, '[TrueTargetLock] Usage: //truetargetlock faceaway on|off')
+            return
+        end
+        faceaway = value
+        clear_turnaway()
+        show_status()
+    elseif cmd == 'turnaway' or cmd == 'away' then
+        if arg == 'off' or arg == 'cancel' then
+            clear_turnaway()
+            show_status()
+            return
+        end
+        local seconds = arg and tonumber(arg) or DEFAULT_TURNAWAY_SECONDS
+        if not seconds or seconds <= 0 or seconds > MAX_TURNAWAY_SECONDS then
+            windower.add_to_chat(207, '[TrueTargetLock] Usage: //truetargetlock turnaway [seconds up to 30]|off')
+            return
+        end
+        local p = windower.ffxi.get_player()
+        local target = p and p.target_index and windower.ffxi.get_mob_by_index(p.target_index)
+        if not target or not target.id or target.id == 0 then
+            windower.add_to_chat(207, '[TrueTargetLock] Turn-away needs a current target.')
+            return
+        end
+        turnaway_target = target.id
+        turnaway_until = os.clock() + seconds
+        show_status()
+    elseif cmd == 'face' then
+        faceaway = false
+        clear_turnaway()
+        show_status()
     elseif cmd == 'status' then
         show_status()
     else
@@ -134,9 +188,16 @@ windower.register_event('prerender', function()
     local pinfo = windower.ffxi.get_player()
     if not pinfo then return end
 
-    if settings.combat and pinfo.status ~= 1 then return end
+    local timed_away = t < turnaway_until
+    if not timed_away and turnaway_target then clear_turnaway() end
+    local explicit_away = timed_away or faceaway
 
-    if settings.locked and not pinfo.target_locked then return end
+    -- Explicit facing commands override the automatic combat/lock filters.
+    -- Normal face-target behavior still obeys both saved preferences.
+    if not explicit_away then
+        if settings.combat and pinfo.status ~= 1 then return end
+        if settings.locked and not pinfo.target_locked then return end
+    end
 
     if not pinfo.target_index or pinfo.target_index == 0 then return end
 
@@ -147,8 +208,15 @@ windower.register_event('prerender', function()
     if not target or target.id == 0 then return end
     if target.spawn_type == 16 and target.hpp and target.hpp <= 0 then return end
 
+    -- Don't suddenly turn away from a different target when auto-retargeting.
+    if timed_away and target.id ~= turnaway_target then
+        clear_turnaway()
+        return
+    end
+
     local desired = desired_facing_direction(self_vector, target)
     if not desired then return end
+    if explicit_away then desired = norm_pi(desired + math.pi) end
 
     local current = self_vector.facing or self_vector.heading or 0
     local delta = math.abs(norm_pi(desired - current))
@@ -156,4 +224,13 @@ windower.register_event('prerender', function()
 
     windower.ffxi.turn(desired)
     last_turn_t = t
+end)
+-- No temporary gaze mode survives zones or logouts.
+windower.register_event('zone change', function()
+    faceaway = false
+    clear_turnaway()
+end)
+windower.register_event('logout', function()
+    faceaway = false
+    clear_turnaway()
 end)
