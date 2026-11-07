@@ -195,9 +195,9 @@ local function fire_pending()
     if not info or not info.logged_in or info.loading then return end
 
     local cmd = p.cmd
-    if cmd and p.target and cmd:lower():find('<t>', 1, true) then
+    if cmd and cmd:lower():find('<t>', 1, true) then
         local t = windower.ffxi.get_mob_by_target('t')
-        if not t or t.id ~= p.target then
+        if not p.target or not t or t.id ~= p.target then
             -- Never fall back to replaying the raw packet for an old target.
             return
         end
