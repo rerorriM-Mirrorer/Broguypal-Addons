@@ -29,7 +29,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 _addon.name    = 'Failsafe'
 _addon.author  = 'Broguypal'
-_addon.version = '1.1.0-dev'
+_addon.version = '1.1.1-dev'
 _addon.commands = {'failsafe'}
 
 require('pack')
@@ -48,6 +48,11 @@ local settings = config.load({
 local casting = false
 local casting_since = 0
 local next_action_at = 0
+
+-- Action category 8 covers both casting start and interruption. The
+-- action param distinguishes the two (as used by Windower/GearSwap addons).
+local CAST_START_PARAM = 24931
+local CAST_INTERRUPT_PARAM = 28787
 
 local function player()
     return windower.ffxi.get_player()
@@ -245,7 +250,10 @@ windower.register_event('incoming chunk', function(id, original, modified, injec
     local message = original:unpack('H', 0x19) % 32768
     if actor ~= p.id and target ~= p.id then return end
 
-    if message == 16 then casting = false end -- casting interrupted
+    if message == 16 then
+        casting = false
+        casting_since = 0
+    end -- casting interrupted (additional confirmation path)
     if job and wait_messages[message] then on_refused() end
 end)
 
@@ -265,10 +273,25 @@ windower.register_event('action', function(act)
     local p = player()
     if not p or act.actor_id ~= p.id then return end
 
-    -- Only observed action events, not predicted animation timers, can tell
-    -- us whether a previous cast has actually started or finished.
-    if act.category == 8 then casting = true; casting_since = os.clock() end
-    if act.category == 4 then casting = false end
+    -- Category 8 is a spell start *or* interruption, not an unconditional
+    -- start. Do not count an interruption as a successful action below.
+    if act.category == 8 then
+        if act.param == CAST_START_PARAM then
+            casting = true
+            casting_since = os.clock()
+        elseif act.param == CAST_INTERRUPT_PARAM then
+            casting = false
+            casting_since = 0
+            return
+        else
+            -- Unknown category-8 variant: don't invent a casting state or
+            -- clear a queued action as though the spell had succeeded.
+            return
+        end
+    elseif act.category == 4 then
+        casting = false
+        casting_since = 0
+    end
     if act.category == 3 or act.category == 4 or act.category == 5
         or act.category == 6 or act.category == 13 or act.category == 14
         or act.category == 15 then
