@@ -230,7 +230,7 @@ windower.register_event('outgoing text', function(original, modified, blocked)
         return
     end
 
-    local tracked_target = line:find('<t>', 1, true) and current_target_id() or nil
+    local tracked_target = line:lower():find('<t>', 1, true) and current_target_id() or nil
     job = {cmd = line, kind = kind, id = id, target_id = tracked_target, attempts = 1}
 end)
 
