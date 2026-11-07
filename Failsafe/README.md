@@ -1,4 +1,4 @@
-# Failsafe — working fork 1.1.0-dev
+# Failsafe — working fork 1.1.1-dev
 
 Failsafe is a Windower addon for Final Fantasy XI that can hold and retry rejected spells, weaponskills, items, job abilities, ranged attacks, and attack-on commands.
 
@@ -55,5 +55,7 @@ Failsafe is free to use and share under the BSD 3-Clause License.
 
 Copyright © 2026 Broguypal
 ## Working-fork changelog
+
+- **2026-11-07 / 1.1.1-dev:** Corrected category-8 casting-state detection: param 24931 marks cast start; 28787 marks an interrupted spell and clears casting rather than marking it active. Unknown variants are ignored, and interruption events no longer count as action successes. The existing 0x029 message-16 fallback remains. Defaults and saved settings are unchanged. In-game acceptance pending.
 
 - **2026-11-06 / 1.1.0-dev:** Experimental bounded readiness mode; idempotent attack-on tracking; commands for mode, attack tracking, max wait, notify, and status. Source-level checks only, in-game testing outstanding.
