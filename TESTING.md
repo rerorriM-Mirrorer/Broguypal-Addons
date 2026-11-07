@@ -1,5 +1,16 @@
 # TESTING.md — Broguypal-Addons working fork
 
+## Current Development Status — 2026-11-07 — Three-addon installation ZIP
+
+- **Repository / branch:** `rerorriM-Mirrorer/Broguypal-Addons` / `development/action-readiness-20261106`. `main` remains unchanged.
+- **Delivery:** Install-ready ZIP with exactly three top-level addon folders: `Failsafe/`, `CastStill/`, and `TrueTargetLock/`. Each folder contains its matching `.lua` source, original addon README with working-fork notes, and copies of `WORKFLOW.md` and `TESTING.md`. Extract these three folders directly into `Windower/addons/`.
+- **Included working-fork versions:** Failsafe `1.1.1-dev` (cast interruption fix), CastStill `1.3.0-dev` (optional firststop), TrueTargetLock `1.3.0` (away-facing commands).
+- **Install cautions:** Back up existing addon folders and saved `data/settings.xml` before replacement. Leave `data/` in place when updating an existing installation; none of the three source folders shipped here includes a `data` folder. Load individually at first. CastStill can trigger a GearSwap reload, which may reset current modes.
+- **Verification:** Verify packaged `.lua` and README bytes against the GitHub branch, ZIP entries/structure and CRC, then run available static or mocked checks. Report exact checks on delivery. No live FFXI/client validation for this packaging batch; all three working-fork addons remain experimental.
+- **Follow-up:** Test Failsafe interrupted Cure + a rejected action, CastStill firststop while moving with GearSwap, and TrueTargetLock manual faceaway/turnaway in a controlled encounter. Preserve user observations in this file.
+
+---
+
 ## Current Development Status — 2026-11-07 — Failsafe cast interruption correction
 
 - **Repository / branch:** `rerorriM-Mirrorer/Broguypal-Addons` / `development/action-readiness-20261106`. Existing `main` is not modified or promoted.
@@ -48,6 +59,13 @@
 - **User request:** Fix the shared casting flag treating category-8 spell interruption as cast start. Changes intentionally limited to Failsafe plus its test and development records.
 - **Commits:** Failsafe executable `ff809582f2a7fd06cb366f73c8797710aed9bfd9`; test `7b842981f8319a3a87072d1270443543213ee876`; see GitHub branch history for README/packet/testing documentation.
 - **Result:** Source invariants passed. Offline regression script exists but wasn't run; Windower/FFXI behavior remains untested. No default-setting changes.
+
+## 2026-11-07 — Three-addon ZIP preparation
+
+- **User request:** Bundle the three experimental addon folders for direct extraction into Windower's `addons` directory.
+- **Delivery format:** One ZIP with `Failsafe/`, `CastStill/`, and `TrueTargetLock/`, each containing `.lua`, `README.md`, `WORKFLOW.md`, and `TESTING.md`.
+- **Changes:** Documentation for the packaging and current acceptance checklist only; no executable source changes are being made as part of ZIP assembly.
+- **Validation:** Packaging and source verification are separate from in-game testing. In-game acceptance remains pending.
 
 ## Previous tests and results
 
