@@ -18,7 +18,7 @@ This prevents common melee issues where auto-retarget selects a new monster but 
 
 ---
 
-## Settings (v1.2)
+## Settings (v1.3 working fork)
 
 TrueTargetLock has two toggles that are saved between sessions in:
 
@@ -52,6 +52,8 @@ Leaving off `on`/`off` toggles the current value. Use `//truetargetlock status` 
 //truetargetlock turnaway off
 //truetargetlock face
 //truetargetlock status
+//truetargetlock restart
+//truetargetlock unload
 ```
 
 `faceaway on` continuously faces **180 degrees away** from the current target. It is a temporary, session-only setting (never saved), and remains active until `off`, `face`, logout, or zoning. When you explicitly request face-away, it overrides the normal combat and native-target-lock requirements.
@@ -66,8 +68,8 @@ A face-away direction can be useful for gaze mechanics, but it is not a guarante
 |--------|--------|----------|
 | ON  | ON  | Faces your target while engaged and locked on *(default, formerly Normal mode)* |
 | ON  | OFF | Faces anything or anyone you are locked onto, in or out of combat |
-| OFF | ON  | Always faces your target while engaged *(formerly Always mode)* ⚠ You cannot turn away while engaged |
-| OFF | OFF | Always faces whatever you currently have targeted ⚠ You cannot turn away from any target |
+| OFF | ON  | Always faces your target while engaged *(formerly Always mode)* ⚠ Manual turning away is overridden unless an explicit faceaway or turnaway mode is active |
+| OFF | OFF | Always faces whatever you currently have targeted ⚠ Manual turning away is overridden unless an explicit faceaway or turnaway mode is active |
 
 If you have no target, the addon does nothing.
 
