@@ -1,5 +1,17 @@
 # TESTING.md — Broguypal-Addons working fork
 
+## Code review and static checks — 2026-11-06
+
+- **Changes on development branch only:** TrueTargetLock v1.3.0 adds session-only `faceaway` and target-bound timed `turnaway`; Failsafe v1.1.0-dev adds idempotent `/attack on` tracking and a bounded readiness-aware mode; CastStill v1.3.0-dev adds optional `firststop` mode and configurable hold times. Each has updated README documentation plus help/status/restart/unload commands.
+- **Docs:** Adopted `AGENTS.md`, canonical-shared `WORKFLOW.md` with fork notes, this cumulative `TESTING.md`, and `docs/PACKETS.md` for implementation assumptions and requested captures.
+- **Verification performed:** Pulled each published Lua file back from GitHub and checked balanced quote/comment, delimiter, and control-block structure with an independent JS lexical checker. All three reported no structural errors. Confirmed exactly one instance of each Failsafe event registration after repairing an erroneous duplicated section. Confirmed separate settings/commands and reviewed the original source paths.
+- **Verification not performed:** No full Lua 5.1 parsing or native Windower API smoke test, controller input test, packet capture, or live FFXI verification. Do not install all three simultaneously for initial testing; start one addon at a time.
+- **Safety/behavior caveats:** Failsafe's readiness mode is heuristic; no single definitive server unlock signal was found. It gives up after one additional attempt (ready mode) or two additional attempts (fixed mode). CastStill firststop mode cancels an unfulfilled pending action after timeout. TrueTargetLock's explicit away commands override normal engaged/locked requirements; do not rely on this alone to avoid gaze mechanics.
+- **Release:** Working branch `development/action-readiness-20261106`; `main` has not been intentionally edited. No testing ZIP generated in this batch; users may inspect source in the branch.
+- **Next live tests:** Check attack timing and unchanged-target guards, firststop on multiple clients, TrueTargetLock's true-away and timed return, CastStill + GearSwap, and Failsafe/CastStill interaction. Record detailed packet data before tuning global recovery heuristics.
+
+---
+
 ## Current development status — 2026-11-06
 
 - **Repository:** `rerorriM-Mirrorer/Broguypal-Addons`.
@@ -24,7 +36,7 @@
 
 | Date | Batch | Commit | Verification | Live FFXI |
 | --- | --- | --- | --- | --- |
-| 2026-11-06 | Workflow adoption & experimental design | To be filled on publication | Source review | Not performed |
+| 2026-11-06 | Workflow adoption, three addon experiments, and packet notes | See branch commit history; latest remote commit recorded at delivery | Structural checks only | Not performed |
 
 ## User observations and requests
 
