@@ -41,7 +41,6 @@ local res = require('resources')
 local config = require('config')
 
 local recent_window  = 1.25
-local stop_window    = 0.35 -- upstream default preserved in recent mode
 local settings = config.load({mode = 'recent', hold = 0.35, firststop_hold = 5.0})
 local firststop_settle = 0.20 -- fresh stationary interval; prevents a lone repeated packet from releasing
 local bypass_window  = 1.50
@@ -196,10 +195,11 @@ local function fire_pending()
     if not info or not info.logged_in or info.loading then return end
 
     local cmd = p.cmd
-    if cmd and p.target and cmd:find('<t>', 1, true) then
+    if cmd and p.target and cmd:lower():find('<t>', 1, true) then
         local t = windower.ffxi.get_mob_by_target('t')
         if not t or t.id ~= p.target then
-            cmd = nil
+            -- Never fall back to replaying the raw packet for an old target.
+            return
         end
     end
 
@@ -275,7 +275,12 @@ windower.register_event('outgoing text', function(original, modified, blocked)
         return ''
     end
 
-    cs.pending = { cmd = line }
+    local tid
+    if line:lower():find('<t>', 1, true) then
+        local target = windower.ffxi.get_mob_by_target('t')
+        tid = target and target.id or nil
+    end
+    cs.pending = {cmd = line, target = tid}
     cs.pending_time = os.clock()
     return ''
 end)
