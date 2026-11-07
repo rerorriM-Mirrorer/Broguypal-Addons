@@ -219,7 +219,19 @@ windower.register_event('outgoing text', function(original, modified, blocked)
     -- /attack without an argument toggles on/off. Replay only an idempotent
     -- /attack on, never a toggle or /attack off.
     if kind == 'attack' then
-        local rest = (line:match('^%S+%s*(.-)%s*
+        local rest = (line:match('^%S+%s*(.-)%s*$') or ''):lower()
+        if rest:find('^off') then job = nil; return end
+        if not settings.attack then return end
+        local p = player()
+        if p and p.status == 1 then return end
+        local tid = current_target_id()
+        if not tid then return end
+        job = {cmd = '/attack on', kind = 'attack', target_id = tid, attempts = 1}
+        return
+    end
+
+    local tracked_target = line:find('<t>', 1, true) and current_target_id() or nil
+    job = {cmd = line, kind = kind, id = id, target_id = tracked_target, attempts = 1}
 end)
 
 windower.register_event('incoming chunk', function(id, original, modified, injected, blocked)
@@ -368,95 +380,3 @@ end
 
 windower.register_event('zone change', reset)
 windower.register_event('logout', reset)
-) or ''):lower()
-        if rest:find('^off') then job = nil; return end
-        if not settings.attack then return end
-        local p = player()
-        if p and p.status == 1 then return end
-        local tid = current_target_id()
-        if not tid then return end
-        job = {cmd = '/attack on', kind = 'attack', target_id = tid, attempts = 1}
-        return
-    end
-
-    local tracked_target = line:find('<t>', 1, true) and current_target_id() or nil
-    job = {cmd = line, kind = kind, id = id, target_id = tracked_target, attempts = 1}
-end)
-
-windower.register_event('incoming chunk', function(id, original, modified, injected, blocked)
-    if id ~= 0x029 or type(original) ~= 'string' or #original < 26 then return end
-    if not job then return end
-
-    local p = windower.ffxi.get_player()
-    if not p then return end
-
-    local actor   = original:unpack('I', 0x05)
-    local target  = original:unpack('I', 0x09)
-    local message = original:unpack('H', 0x19) % 32768
-    if actor ~= p.id and target ~= p.id then return end
-
-    if wait_messages[message] then on_refused() end
-end)
-
-windower.register_event('incoming text', function(original, modified, mode, modified_mode, blocked)
-    if not job then return end
-
-    for _, pattern in ipairs(reject_lines) do
-        if (type(original) == 'string' and original:find(pattern))
-        or (type(modified) == 'string' and modified:find(pattern)) then
-            on_refused()
-            return
-        end
-    end
-end)
-
-windower.register_event('action', function(act)
-    if not job then return end
-
-    local p = windower.ffxi.get_player()
-    if not p or act.actor_id ~= p.id then return end
-
-    if job.kind == 'ranged' and (act.category == 2 or act.category == 12) then
-        job = nil
-        return
-    end
-
-    local resource = resource_by_category[act.category]
-    if not resource or kind_by_resource[resource] ~= job.kind then return end
-
-    local id
-    if id_lives_in_target[act.category] then
-        local t = act.targets and act.targets[1]
-        local a = t and t.actions and t.actions[1]
-        id = a and a.param
-    else
-        id = act.param
-    end
-
-    if id and job.id and id == job.id then job = nil end
-end)
-
-windower.register_event('prerender', function()
-    local now = os.clock()
-
-    if echo and now > echo.deadline then echo = nil end
-
-    if not job or not job.fire_at or now < job.fire_at then return end
-
-    job.fire_at = nil
-    job.attempts = job.attempts + 1
-    echo = {cmd = job.cmd, deadline = now + echo_timeout}
-
-    windower.send_command('input ' .. job.cmd)
-end)
-
-windower.register_event('addon command', function(cmd)
-    if cmd and cmd:lower() == 'notify' then
-        settings.notify = not settings.notify
-        settings:save('all')
-        windower.add_to_chat(207, 'Failsafe retry messages ' .. (settings.notify and 'on' or 'off') .. '.')
-    end
-end)
-
-windower.register_event('zone change', function() job = nil; echo = nil end)
-windower.register_event('logout', function() job = nil; echo = nil end)
