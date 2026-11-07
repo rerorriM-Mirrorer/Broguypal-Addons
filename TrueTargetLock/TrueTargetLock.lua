@@ -165,6 +165,8 @@ windower.register_event('addon command', function(cmd, arg)
             windower.add_to_chat(207, '[TrueTargetLock] Turn-away needs a current target.')
             return
         end
+        -- A timed turn-away takes precedence, then resumes normal targeting.
+        faceaway = false
         turnaway_target = target.id
         turnaway_until = os.clock() + seconds
         show_status()
