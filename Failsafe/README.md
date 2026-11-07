@@ -2,6 +2,32 @@
 
 Failsafe is a Windower addon for Final Fantasy XI that can hold and retry rejected spells, weaponskills, items, job abilities, ranged attacks, and attack-on commands.
 
+## State-aware experiment
+
+The working fork defaults to `mode ready`. After a server rejection, it waits for observable readiness: a completed cast, spell/ability recast at zero (where available), sufficient TP for weaponskills, and disengaged status for `/attack`. It sends **at most one additional attempt** in this mode and abandons pending work after the timeout (default 4 seconds). This is a best-effort heuristic, **not proof that the server's animation/global recovery is complete**.
+
+`mode fixed` keeps the original 0.65-second schedule, allowing up to two additional attempts.
+
+The addon recognizes `/attack` and `/a`, and safely resends only `/attack on`. It does not retry `/attack off` or re-send a toggle, and cancels pending engagement once you're engaged or the original target changes. A `<t>`-targeted pending action also cancels if the target changes.
+
+Commands:
+
+```text
+//failsafe mode ready
+//failsafe mode fixed
+//failsafe attack on
+//failsafe attack off
+//failsafe maxwait 4
+//failsafe notify on
+//failsafe notify off
+//failsafe status
+//failsafe help
+//failsafe restart
+//failsafe unload
+```
+
+The `maxwait` range is 1–15 seconds. Changing settings cancels pending work. All automatic attempts remain experimental until observed in-game.
+
 # What is it?
 
 Ever press a spell, weaponskill, job ability, or item a split second too early and the 
@@ -11,11 +37,11 @@ game refuses it? Failsafe presses it again for you.
 
 1. You use an ability (spell, job ability, weaponskill, or item).
 2. It doesn't go off.
-3. Failsafe retries it, up to 2 additional attempts total.
+3. The working-fork readiness mode waits for an observable opening and makes one extra attempt; fixed mode retains two retries.
 
 ## Commands
 
-* `//failsafe notify` turns the retry message on or off. It's on by default.
+Use the command examples above; notification is enabled by default.
 
 ## Install
 
