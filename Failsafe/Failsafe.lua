@@ -46,8 +46,8 @@ local settings = config.load({
     max_wait = 4.0,
 })
 local casting = false
+local casting_since = 0
 local next_action_at = 0
-local last_action_category = nil
 
 local function player()
     return windower.ffxi.get_player()
@@ -66,6 +66,8 @@ local function ready_for(job, now)
         if p.status == 1 then return false, 'already engaged' end
         if not job.target_id then return false, 'no target' end
     end
+    -- A missed interruption packet should not strand readiness forever.
+    if casting and now - casting_since > 20 then casting = false end
     if casting or now < next_action_at then return false end
 
     if job.kind == 'spell' and job.id then
@@ -222,7 +224,6 @@ end)
 
 windower.register_event('incoming chunk', function(id, original, modified, injected, blocked)
     if id ~= 0x029 or type(original) ~= 'string' or #original < 26 then return end
-    if not job then return end
 
     local p = windower.ffxi.get_player()
     if not p then return end
@@ -232,7 +233,8 @@ windower.register_event('incoming chunk', function(id, original, modified, injec
     local message = original:unpack('H', 0x19) % 32768
     if actor ~= p.id and target ~= p.id then return end
 
-    if wait_messages[message] then on_refused() end
+    if message == 16 then casting = false end -- casting interrupted
+    if job and wait_messages[message] then on_refused() end
 end)
 
 windower.register_event('incoming text', function(original, modified, mode, modified_mode, blocked)
@@ -253,12 +255,11 @@ windower.register_event('action', function(act)
 
     -- Only observed action events, not predicted animation timers, can tell
     -- us whether a previous cast has actually started or finished.
-    if act.category == 8 then casting = true end
+    if act.category == 8 then casting = true; casting_since = os.clock() end
     if act.category == 4 then casting = false end
     if act.category == 3 or act.category == 4 or act.category == 5
         or act.category == 6 or act.category == 13 or act.category == 14
         or act.category == 15 then
-        last_action_category = act.category
         next_action_at = os.clock() + 0.25 -- short buffer, never assumed server confirmation
     end
     if not job then return end
@@ -362,7 +363,7 @@ local function reset()
     echo = nil
     casting = false
     next_action_at = 0
-    last_action_category = nil
+    casting_since = 0
 end
 
 windower.register_event('zone change', reset)
