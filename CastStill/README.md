@@ -16,16 +16,14 @@ standing still.
 
 It works on magic, ninjutsu, songs, trusts, items, and ranged attacks.
 
-Note: If you cast while you're still actively running, the spell gets sent after
-the hold expires and can still be interrupted. CastStill protects you from
-the lag after stopping; it can't make you cast while running.
+In the default recent mode, an action requested during continuous running can still be interrupted when the short hold expires. Optional firststop mode instead waits for a stationary opening or cancels at its configured timeout.
 
 ## How it works
 
 CastStill watches the position updates your client sends to the server. When
 you act too soon after moving, it holds the outgoing action packet and re-sends
 it once your client has reported the same position twice or after a short timeout,
-whichever comes first. The hold is never longer than .35 seconds.
+whichever comes first in the original recent mode. That mode defaults to a 0.35-second maximum hold; the optional firststop mode has a separate longer maximum.
 
 In the original recent mode, the upstream behavior remains unchanged. The working fork also provides configurable holds and firststop mode (see above).
 
@@ -38,6 +36,8 @@ A new **firststop** mode holds movement-interruptible actions while you are movi
 Commands:
 
 ```text
+//caststill restart
+//caststill unload
 //caststill mode firststop
 //caststill hold 5
 //caststill mode recent
