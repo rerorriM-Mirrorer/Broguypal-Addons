@@ -117,6 +117,8 @@ local function show_help()
     windower.add_to_chat(207, '  //truetargetlock turnaway off   - Cancel timed turn-away')
     windower.add_to_chat(207, '  //truetargetlock face           - Resume automatic facing')
     windower.add_to_chat(207, '  //truetargetlock status         - Show current settings')
+    windower.add_to_chat(207, '  //truetargetlock restart        - Reload this addon')
+    windower.add_to_chat(207, '  //truetargetlock unload         - Unload this addon')
 end
 
 windower.register_event('addon command', function(cmd, arg)
@@ -176,6 +178,12 @@ windower.register_event('addon command', function(cmd, arg)
         show_status()
     elseif cmd == 'status' then
         show_status()
+    elseif cmd == 'restart' then
+        windower.add_to_chat(207, '[TrueTargetLock] Reloading.')
+        windower.send_command('lua reload truetargetlock')
+    elseif cmd == 'unload' then
+        windower.add_to_chat(207, '[TrueTargetLock] Unloading.')
+        windower.send_command('lua unload truetargetlock')
     else
         show_help()
         show_status()
