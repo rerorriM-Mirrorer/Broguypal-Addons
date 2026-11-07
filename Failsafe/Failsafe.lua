@@ -338,6 +338,8 @@ local function help()
     windower.add_to_chat(207, '  //failsafe notify [on|off]   - Announce rejected actions')
     windower.add_to_chat(207, '  //failsafe status            - Show settings and pending action')
     windower.add_to_chat(207, '  //failsafe help              - Show commands')
+    windower.add_to_chat(207, '  //failsafe restart           - Reload this addon')
+    windower.add_to_chat(207, '  //failsafe unload            - Unload this addon')
 end
 
 local function status()
@@ -352,6 +354,11 @@ windower.register_event('addon command', function(cmd, arg)
     arg = arg and arg:lower() or nil
     if cmd == 'status' then status(); return end
     if cmd == 'help' or cmd == '' then help(); return end
+    if cmd == 'restart' or cmd == 'unload' then
+        windower.add_to_chat(207, '[Failsafe] '.. (cmd == 'restart' and 'Reloading.' or 'Unloading.'))
+        windower.send_command('lua ' .. (cmd == 'restart' and 'reload' or 'unload') .. ' failsafe')
+        return
+    end
     if cmd == 'mode' then
         if arg ~= 'ready' and arg ~= 'fixed' then help(); return end
         settings.mode = arg
