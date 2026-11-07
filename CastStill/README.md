@@ -1,4 +1,4 @@
-# CastStill
+# CastStill — working fork 1.3.0-dev
 
 A Windower 4 addon for Final Fantasy XI that stops your spells, items, and
 ranged attacks from getting interrupted right after you stop moving.
@@ -27,7 +27,30 @@ you act too soon after moving, it holds the outgoing action packet and re-sends
 it once your client has reported the same position twice or after a short timeout,
 whichever comes first. The hold is never longer than .35 seconds.
 
-There's nothing to configure and no commands. The timings are tuned and fixed.
+In the original recent mode, the upstream behavior remains unchanged. The working fork also provides configurable holds and firststop mode (see above).
+
+## Experimental movement modes (working fork)
+
+The upstream **recent** mode is unchanged by default: actions are held for up to 0.35 seconds if you have just moved and the position is unsettled.
+
+A new **firststop** mode holds movement-interruptible actions while you are moving, waiting for the first observed stationary opening (unchanged outgoing `0x015` position, matching current client position, and a brief 0.20-second settle interval). It observes local position updates as well, not solely the last outgoing packet.
+
+Commands:
+
+```text
+//caststill mode firststop
+//caststill hold 5
+//caststill mode recent
+//caststill hold 0.8
+//caststill status
+//caststill help
+```
+
+`hold` sets the current mode's maximum hold (0.1 to 15 seconds). Defaults are 0.35 seconds in recent mode and 5 seconds in firststop mode. **When firststop times out while still moving, CastStill cancels the pending action rather than sending an action that would likely fail.** In recent mode a timeout replays the action, as upstream does.
+
+Only spells/ninjutsu/songs/Trust calls, items, and ranged attacks are gated. Weapon skills and standard job abilities are intentionally untouched: these don't have the same movement-interruption behavior. The addon still holds at most one pending action. GearSwap detection and ordering logic remain in place.
+
+This is an experiment, not a confirmed guarantee of server readiness. Test the timing and target-change behavior on each client before depending on it.
 
 ## Does it work with GearSwap?
 
@@ -51,3 +74,7 @@ have.
 CastStill is free to use and share under the BSD 3-Clause License.
 
 Copyright © 2026 Broguypal
+
+## Working-fork changelog
+
+- **2026-11-06 / v1.3.0-dev:** Added optional first-stop hold during movement and independently configurable timeout per mode. Preserves upstream recent-mode defaults. Static code review only; live FFXI behavior pending.
